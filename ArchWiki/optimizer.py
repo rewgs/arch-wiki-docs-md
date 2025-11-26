@@ -2,15 +2,17 @@
 
 import os
 import re
+import urllib.parse
+
 import lxml.etree
 import lxml.html
-import urllib.parse
+
 
 class Optimizer:
     def __init__(self, wiki, base_directory):
-        """ @wiki:           ArchWiki instance to work with
-            @base_directory: absolute path to base output directory, used for
-                             computation of relative links
+        """@wiki:           ArchWiki instance to work with
+        @base_directory: absolute path to base output directory, used for
+                         computation of relative links
         """
         self.wiki = wiki
         self.base_directory = base_directory
@@ -32,17 +34,20 @@ class Optimizer:
         self.fix_footer(root)
 
         # return output
-        return lxml.etree.tostring(root,
-                                   pretty_print=True,
-                                   encoding="unicode",
-                                   method="html",
-                                   doctype="<!DOCTYPE html>")
+        return lxml.etree.tostring(
+            root,
+            pretty_print=True,
+            encoding="unicode",
+            method="html",
+            doctype="<!DOCTYPE html>",
+        )
 
     def strip_page(self, root):
-        """ remove elements useless in offline browsing
-        """
+        """remove elements useless in offline browsing"""
 
-        for e in root.cssselect("#archnavbar, #mw-navigation, header.mw-header, .vector-sitenotice-container, .vector-page-toolbar"):
+        for e in root.cssselect(
+            "#archnavbar, #mw-navigation, header.mw-header, .vector-sitenotice-container, .vector-page-toolbar"
+        ):
             e.getparent().remove(e)
 
         # strip comments (including IE 6/7 fixes, which are useless for an Arch package)
@@ -52,8 +57,7 @@ class Optimizer:
         lxml.etree.strip_elements(root, "script")
 
     def fix_layout(self, root):
-        """ fix page layout after removing some elements
-        """
+        """fix page layout after removing some elements"""
 
         # in case of select-by-id a list with max one element is returned
         for c in root.cssselect("#content"):
@@ -62,10 +66,9 @@ class Optimizer:
             f.set("style", "margin: 0")
 
     def replace_css_links(self, root, css_path):
-        """ force using local CSS
-        """
+        """force using local CSS"""
 
-        links = root.xpath("//head/link[@rel=\"stylesheet\"]")
+        links = root.xpath('//head/link[@rel="stylesheet"]')
 
         # overwrite first
         links[0].set("href", css_path)
@@ -75,15 +78,17 @@ class Optimizer:
             link.getparent().remove(link)
 
     def update_links(self, root, relbase):
-        """ change "internal" wiki links into relative
-        """
+        """change "internal" wiki links into relative"""
 
         for a in root.cssselect("a"):
             href = a.get("href")
             if href is not None:
                 href = urllib.parse.unquote(href)
                 # matching full URL is necessary for interlanguage links
-                match = re.match("^(https://wiki.archlinux.org)?/title/(?P<title>.+?)(?:#(?P<fragment>.+))?$", str(href))
+                match = re.match(
+                    "^(https://wiki.archlinux.org)?/title/(?P<title>.+?)(?:#(?P<fragment>.+))?$",
+                    str(href),
+                )
                 if match:
                     title = self.wiki.resolve_redirect(match.group("title"))
                     try:
@@ -110,9 +115,9 @@ class Optimizer:
                 i.set("src", src)
 
     def fix_footer(self, root):
-        """ move content from 'div.printfooter' into item in '#footer-info'
-            (normally 'div.printfooter' is given 'display:none' and is separated by
-            the categories list from the real footer)
+        """move content from 'div.printfooter' into item in '#footer-info'
+        (normally 'div.printfooter' is given 'display:none' and is separated by
+        the categories list from the real footer)
         """
 
         for printfooter in root.cssselect("div.printfooter"):

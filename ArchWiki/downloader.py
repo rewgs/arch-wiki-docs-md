@@ -1,10 +1,11 @@
 #! /usr/bin/env python3
 
-import os
 import datetime
+import os
 
 import requests
 from requests.packages.urllib3.util.retry import Retry
+
 
 class Downloader:
     query_allpages = {
@@ -31,12 +32,12 @@ class Downloader:
     }
 
     def __init__(self, wiki, output_directory, epoch, *, optimizer=None):
-        """ Parameters:
-            @wiki:          ArchWiki instance to work with
-            @output_directory:  where to store the downloaded files
-            @epoch:         force update of every file older than this date (must be instance
-                            of 'datetime')
-            @optimizer:     callback function for HTML post-processing
+        """Parameters:
+        @wiki:          ArchWiki instance to work with
+        @output_directory:  where to store the downloaded files
+        @epoch:         force update of every file older than this date (must be instance
+                        of 'datetime')
+        @optimizer:     callback function for HTML post-processing
         """
 
         self.wiki = wiki
@@ -53,14 +54,15 @@ class Downloader:
 
         self.session = requests.Session()
         # granular control over requests' retries: https://stackoverflow.com/a/35504626
-        retries = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
+        retries = Retry(
+            total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504]
+        )
         adapter = requests.adapters.HTTPAdapter(max_retries=retries)
         self.session.mount("https://", adapter)
         self.session.mount("http://", adapter)
 
     def needs_update(self, fname, timestamp):
-        """ determine if it is necessary to download a page
-        """
+        """determine if it is necessary to download a page"""
 
         if not os.path.exists(fname):
             return True
@@ -70,15 +72,16 @@ class Downloader:
         return False
 
     def process_namespace(self, namespace):
-        """ walk all pages in given namespace, download if necessary
-        """
+        """walk all pages in given namespace, download if necessary"""
 
         print(f"Processing namespace {namespace}...")
 
         query = self.query_allpages.copy()
         query["gapnamespace"] = namespace
         for pages_snippet in self.wiki.query_continue(query):
-            for page in sorted(pages_snippet["pages"].values(), key=lambda d: d["title"]):
+            for page in sorted(
+                pages_snippet["pages"].values(), key=lambda d: d["title"]
+            ):
                 title = page["title"]
                 fname = self.wiki.get_local_filename(title, self.output_directory)
                 if not fname:
@@ -136,8 +139,8 @@ class Downloader:
                     print(f"  [up-to-date]  {title}")
 
     def clean_output_directory(self):
-        """ Walk output_directory and delete all files not found on the wiki.
-            Should be run _after_ downloading, otherwise all files will be deleted!
+        """Walk output_directory and delete all files not found on the wiki.
+        Should be run _after_ downloading, otherwise all files will be deleted!
         """
 
         print("Deleting unwanted files (deleted/moved on the wiki)...")

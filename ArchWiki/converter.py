@@ -1,19 +1,22 @@
 #! /usr/bin/env python3
 
+# for filter_in
+import json
 import os
 import subprocess
 
 # for filter_pre
 import lxml.etree
 import lxml.html
-
-# for filter_in
-import json
 import pandocfilters
+
 
 class PandocError(Exception):
     def __init__(self, retcode, errs):
-        Exception.__init__(self, "pandoc failed with return code %s\nstderr:\n%s" % (retcode, errs))
+        Exception.__init__(
+            self, "pandoc failed with return code %s\nstderr:\n%s" % (retcode, errs)
+        )
+
 
 class ManFilter:
     format = "man"
@@ -40,7 +43,9 @@ class ManFilter:
             h.text = "Notes"
             footer.insert(0, h)
 
-        return lxml.etree.tostring(root, encoding="unicode", method="html", doctype="<!DOCTYPE html>")
+        return lxml.etree.tostring(
+            root, encoding="unicode", method="html", doctype="<!DOCTYPE html>"
+        )
 
     def filter_in(self, instring):
         def _filter(key, value, format, meta):
@@ -50,28 +55,28 @@ class ManFilter:
                 internal, [href, text] = value
                 if href.endswith(".html"):
                     href = href[:-5]
-# FIXME: this stupid detection will not work
-#        or just leave the full path?
-#                    if href.startswith("./"):
-#                        href = href[2:]
-#                    elif href.startswith("../"):
-#                        href = href[3:]
+                # FIXME: this stupid detection will not work
+                #        or just leave the full path?
+                #                    if href.startswith("./"):
+                #                        href = href[2:]
+                #                    elif href.startswith("../"):
+                #                        href = href[3:]
                 return pandocfilters.Link(internal, [href, text])
-            
-# TODO: it's implemented in filter_pre, but could be useful anyway since html may not be
-#       the only input format; the most generic way should be implemented
-#            if key == "Header":
-#                level, classes, internal = value
-#
-#                # record top level
-#                if self.heading_top_level == 0:
-#                    self.heading_top_level = level
-#
-#                # ensure we start from h1 in output
-#                if level > self.heading_top_level:
-#                    level -= self.heading_top_level
-#
-#                return pandocfilters.Header(level, classes, internal)
+
+        # TODO: it's implemented in filter_pre, but could be useful anyway since html may not be
+        #       the only input format; the most generic way should be implemented
+        #            if key == "Header":
+        #                level, classes, internal = value
+        #
+        #                # record top level
+        #                if self.heading_top_level == 0:
+        #                    self.heading_top_level = level
+        #
+        #                # ensure we start from h1 in output
+        #                if level > self.heading_top_level:
+        #                    level -= self.heading_top_level
+        #
+        #                return pandocfilters.Header(level, classes, internal)
 
         doc = json.loads(instring)
         altered = pandocfilters.walk(doc, _filter, self.format, doc[0]["unMeta"])
@@ -79,6 +84,7 @@ class ManFilter:
 
     def filter_post(self, instring):
         return instring
+
 
 class Converter:
     def __init__(self, filter_inst, input_dir, output_dir, output_format):
@@ -97,7 +103,9 @@ class Converter:
         for path, dirs, files in os.walk(self.input_dir):
             for f in files:
                 infile = os.path.join(path, f)
-                outdir = os.path.join(self.output_dir, os.path.relpath(path, self.input_dir))
+                outdir = os.path.join(
+                    self.output_dir, os.path.relpath(path, self.input_dir)
+                )
                 outfile = os.path.join(os.path.normpath(outdir), f)
                 outfile = os.path.splitext(outfile)[0] + "." + self.output_format
                 if infile.endswith(".html"):
@@ -109,7 +117,7 @@ class Converter:
                         print("  [conv failed] %s" % infile)
                 else:
                     print("  [skip conv]   %s" % infile)
-        
+
         if len(failed) > 0:
             print("failed to convert %d pages:" % len(failed))
             for f in failed:
@@ -136,8 +144,13 @@ class Converter:
         f.close()
 
     def run_pandoc(self, cmd, instring):
-        popen = subprocess.Popen(cmd, shell=True, universal_newlines=True,
-                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+        popen = subprocess.Popen(
+            cmd,
+            shell=True,
+            universal_newlines=True,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+        )
         outs, errs = popen.communicate(instring)
 
         if popen.returncode != 0:
@@ -150,6 +163,7 @@ class Converter:
 
     def pandoc_last(self, instring):
         return self.run_pandoc("pandoc -s -f json -t %s" % self.output_format, instring)
+
 
 if __name__ == "__main__":
     f = ManFilter()

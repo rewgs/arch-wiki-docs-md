@@ -1,12 +1,12 @@
 #! /usr/bin/env python3
 
-""" Module extending generic MediaWiki interface with stuff specific to ArchWiki
-    and some convenient generic methods.
+"""Module extending generic MediaWiki interface with stuff specific to ArchWiki
+and some convenient generic methods.
 """
 
+import hashlib
 import os.path
 import re
-import hashlib
 
 from simplemediawiki import MediaWiki
 
@@ -52,12 +52,40 @@ language_names = {
     "Tiếng Việt": {"subtag": "vi", "english": "Vietnamese"},
     "粵語": {"subtag": "yue", "english": "Cantonese"},
     "简体中文": {"subtag": "zh-hans", "english": "Chinese (Simplified)"},
-    "正體中文": {"subtag": "zh-hant", "english": "Chinese (Traditional)"}
+    "正體中文": {"subtag": "zh-hant", "english": "Chinese (Traditional)"},
 }
 interlanguage_external = ["de", "fa", "ja", "sv"]
-interlanguage_internal = ["ar", "bs", "bg", "cs", "da", "el", "en", "es", "fi", "fr",
-                          "he", "hr", "hu", "id", "it", "ko", "lt", "nl", "pl", "pt",
-                          "ru", "sk", "sr", "th", "tr", "uk", "zh-hans", "zh-hant"]
+interlanguage_internal = [
+    "ar",
+    "bs",
+    "bg",
+    "cs",
+    "da",
+    "el",
+    "en",
+    "es",
+    "fi",
+    "fr",
+    "he",
+    "hr",
+    "hu",
+    "id",
+    "it",
+    "ko",
+    "lt",
+    "nl",
+    "pl",
+    "pt",
+    "ru",
+    "sk",
+    "sr",
+    "th",
+    "tr",
+    "uk",
+    "zh-hans",
+    "zh-hant",
+]
+
 
 def is_ascii(text):
     try:
@@ -66,12 +94,13 @@ def is_ascii(text):
     except:
         return False
 
+
 class ArchWiki(MediaWiki):
 
     def __init__(self, safe_filenames=False, langs=None, **kwargs):
-        """ Parameters:
-            @safe_filenames: force self.get_local_filename() to return ASCII string
-            + all keyword arguments of simplemediawiki.MediaWiki
+        """Parameters:
+        @safe_filenames: force self.get_local_filename() to return ASCII string
+        + all keyword arguments of simplemediawiki.MediaWiki
         """
         super().__init__(url, **kwargs)
 
@@ -88,8 +117,8 @@ class ArchWiki(MediaWiki):
             self._language_names = language_names
 
     def query_continue(self, query):
-        """ Generator for MediaWiki's query-continue feature.
-            ref: https://www.mediawiki.org/wiki/API:Query#Continuing_queries
+        """Generator for MediaWiki's query-continue feature.
+        ref: https://www.mediawiki.org/wiki/API:Query#Continuing_queries
         """
         last_continue = {"continue": ""}
 
@@ -112,8 +141,7 @@ class ArchWiki(MediaWiki):
             last_continue = result["continue"]
 
     def namespaces(self):
-        """ Force the Main namespace to have name instead of empty string.
-        """
+        """Force the Main namespace to have name instead of empty string."""
         if self._namespaces is None:
             self._namespaces = super().namespaces()
             self._namespaces[0] = "Main"
@@ -126,8 +154,7 @@ class ArchWiki(MediaWiki):
             print("  %2d -- %s" % (ns, nsmap[ns]))
 
     def detect_namespace(self, title, safe=True):
-        """ Detect namespace of a given title.
-        """
+        """Detect namespace of a given title."""
         pure_title = title
         detected_namespace = self.namespaces()[0]
         match = re.match("^((.+):)?(.+)$", title)
@@ -159,7 +186,9 @@ class ArchWiki(MediaWiki):
             match = re.fullmatch(title_regex, base)
         # matches "Category:Language"
         if not match:
-            match = re.fullmatch(r"(?P<pure>[Cc]ategory[ _]?\:[ _]?(?P<lang>[^\(\)]+))", title)
+            match = re.fullmatch(
+                r"(?P<pure>[Cc]ategory[ _]?\:[ _]?(?P<lang>[^\(\)]+))", title
+            )
         if match:
             pure = match.group("pure")
             lang = match.group("lang")
@@ -184,8 +213,7 @@ class ArchWiki(MediaWiki):
         return title, local_language
 
     def get_local_filename(self, title, basepath):
-        """ Return file name where the given page should be stored, relative to 'basepath'.
-        """
+        """Return file name where the given page should be stored, relative to 'basepath'."""
         title, lang = self.detect_language(title)
 
         if lang not in self._language_names:
@@ -206,7 +234,17 @@ class ArchWiki(MediaWiki):
         # select pattern per namespace
         if namespace == "Main":
             pattern = "{base}/{langsubtag}/{title}.{ext}"
-        elif namespace in ["Talk", "ArchWiki", "ArchWiki_talk", "Template", "Template_talk", "Help", "Help_talk", "Category", "Category_talk"]:
+        elif namespace in [
+            "Talk",
+            "ArchWiki",
+            "ArchWiki_talk",
+            "Template",
+            "Template_talk",
+            "Help",
+            "Help_talk",
+            "Category",
+            "Category_talk",
+        ]:
             pattern = "{base}/{langsubtag}/{namespace}:{title}.{ext}"
         elif namespace == "File":
             pattern = "{base}/{namespace}:{title}"
@@ -218,13 +256,12 @@ class ArchWiki(MediaWiki):
             langsubtag=self._language_names[lang]["subtag"],
             namespace=namespace,
             title=title,
-            ext="html"
+            ext="html",
         )
         return os.path.normpath(path)
 
     def _fetch_redirects(self):
-        """ Fetch dictionary of redirect pages and their targets
-        """
+        """Fetch dictionary of redirect pages and their targets"""
         query_allredirects = {
             "action": "query",
             "generator": "allpages",
@@ -242,7 +279,9 @@ class ArchWiki(MediaWiki):
             query_allredirects["gapnamespace"] = ns
 
             for pages_snippet in self.query_continue(query_allredirects):
-                pages_snippet = sorted(pages_snippet["pages"].values(), key=lambda d: d["title"])
+                pages_snippet = sorted(
+                    pages_snippet["pages"].values(), key=lambda d: d["title"]
+                )
                 for page in pages_snippet:
                     # construct the mapping, the query result is somewhat reversed...
                     target_title = page["title"]
@@ -250,7 +289,9 @@ class ArchWiki(MediaWiki):
                         source_title = redirect["title"]
                         target_fragment = redirect.get("fragment")
                         if target_fragment:
-                            self._redirects[source_title] = "{}#{}".format(target_title, target_fragment)
+                            self._redirects[source_title] = "{}#{}".format(
+                                target_title, target_fragment
+                            )
                         else:
                             self._redirects[source_title] = target_title
 
@@ -260,8 +301,8 @@ class ArchWiki(MediaWiki):
         return self._redirects
 
     def resolve_redirect(self, title):
-        """ Returns redirect target title, or given title if it is not redirect.
-            The returned title will always contain spaces instead of underscores.
+        """Returns redirect target title, or given title if it is not redirect.
+        The returned title will always contain spaces instead of underscores.
         """
         # the given title must match the format of titles used in self._redirects
         title = title.replace("_", " ")
